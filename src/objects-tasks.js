@@ -272,8 +272,14 @@ function fromJSON(proto, json) {
  *      { country: 'Russia',  city: 'Saint Petersburg' }
  *    ]
  */
-function sortCitiesArray(/* arr */) {
-  throw new Error('Not implemented');
+function sortCitiesArray(arr) {
+  return arr.sort((a, b) => {
+    if (a.country < b.country) return -1;
+    if (a.country > b.country) return 1;
+    if (a.city < b.city) return -1;
+    if (a.city > b.city) return 1;
+    return 0;
+  });
 }
 
 /**
@@ -311,8 +317,18 @@ function sortCitiesArray(/* arr */) {
  *    "Poland" => ["Lodz"]
  *   }
  */
-function group(/* array, keySelector, valueSelector */) {
-  throw new Error('Not implemented');
+function group(array, keySelector, valueSelector) {
+  const map = new Map();
+
+  array.forEach((item) => {
+    const key = keySelector(item);
+    const value = valueSelector(item);
+
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(value);
+  });
+
+  return map;
 }
 
 /**
@@ -369,33 +385,134 @@ function group(/* array, keySelector, valueSelector */) {
  *  For more examples see unit tests.
  */
 
+const ORDER = {
+  element: 1,
+  id: 2,
+  class: 3,
+  attr: 4,
+  pseudoClass: 5,
+  pseudoElement: 6,
+};
+
+class Selector {
+  constructor() {
+    this.elementName = null;
+    this.idName = null;
+    this.classNames = [];
+    this.attributes = [];
+    this.pseudoClasses = [];
+    this.pseudoElementName = null;
+
+    this.selector1 = null;
+    this.combinator = null;
+    this.selector2 = null;
+
+    this.lastSelector = 0;
+  }
+
+  checkOrder(current) {
+    if (ORDER[current] < this.lastSelector) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    this.lastSelector = ORDER[current];
+  }
+
+  element(value) {
+    this.checkOrder('element');
+    if (this.elementName)
+      throw new Error(
+        'Element, id and pseudo-element should not occur more than one time inside the selector'
+      );
+    this.elementName = value;
+    return this;
+  }
+
+  id(value) {
+    this.checkOrder('id');
+    if (this.idName)
+      throw new Error(
+        'Element, id and pseudo-element should not occur more than one time inside the selector'
+      );
+    this.idName = `#${value}`;
+    return this;
+  }
+
+  class(value) {
+    this.checkOrder('class');
+    this.classNames.push(`.${value}`);
+    return this;
+  }
+
+  attr(value) {
+    this.checkOrder('attr');
+    this.attributes.push(`[${value}]`);
+    return this;
+  }
+
+  pseudoClass(value) {
+    this.checkOrder('pseudoClass');
+    this.pseudoClasses.push(`:${value}`);
+    return this;
+  }
+
+  pseudoElement(value) {
+    this.checkOrder('pseudoElement');
+    if (this.pseudoElementName)
+      throw new Error(
+        'Element, id and pseudo-element should not occur more than one time inside the selector'
+      );
+    this.pseudoElementName = `::${value}`;
+    return this;
+  }
+
+  stringify() {
+    if (this.combinator)
+      return `${this.selector1.stringify()} ${this.combinator} ${this.selector2.stringify()}`;
+
+    return (
+      (this.elementName ?? '') +
+      (this.idName ?? '') +
+      this.classNames.join('') +
+      this.attributes.join('') +
+      this.pseudoClasses.join('') +
+      (this.pseudoElementName ?? '')
+    );
+  }
+}
+
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    return new Selector().element(value);
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return new Selector().id(value);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return new Selector().class(value);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return new Selector().attr(value);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return new Selector().pseudoClass(value);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return new Selector().pseudoElement(value);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    const s = new Selector();
+    s.selector1 = selector1;
+    s.combinator = combinator;
+    s.selector2 = selector2;
+    return s;
   },
 };
 
